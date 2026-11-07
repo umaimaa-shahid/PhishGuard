@@ -1,0 +1,47 @@
+{
+  "target": "is_phishing",
+  "id_columns": ["URL", "Domain"],
+  "categorical": ["TLD"],
+  "domain_tld": [
+    "DomainLength",
+    "IsDomainIP",
+    "TLD",
+    "TLDLength",
+    "NoOfSubDomain",
+    "TLDLegitimateProb"
+  ],
+  "char_ratio": [
+    "LetterRatioInURL",
+    "DegitRatioInURL",
+    "SpacialCharRatioInURL",
+    "ObfuscationRatio",
+    "CharContinuationRate",
+    "URLCharProb"
+  ],
+  "char_count": [
+    "URLLength",
+    "NoOfLettersInURL",
+    "NoOfDegitsInURL",
+    "NoOfEqualsInURL",
+    "NoOfQMarkInURL",
+    "NoOfAmpersandInURL",
+    "NoOfOtherSpecialCharsInURL",
+    "NoOfObfuscatedChar",
+    "HasObfuscation"
+  ],
+  "similarity": ["URLSimilarityIndex"],
+  "protocol": ["IsHTTPS"],
+  "leak_suspect": [
+    "URLSimilarityIndex",
+    "TLDLegitimateProb",
+    "URLCharProb",
+    "IsHTTPS"
+  ],
+  "notes": {
+    "label_meaning": "is_phishing: 1 = phishing, 0 = legitimate (original 'label' was inverted)",
+    "leak_suspect": "near-perfect separators or computed over the full dataset; report models with and without",
+    "url_artifact": "all legitimate URLs are bare https://www.<domain> homepages",
+    "outliers_": "kept; apply log1p/clip in preprocessing, fitted on train split only",
+    "URLLength": "authors' value is usually len(URL) - 1; left unchanged_"
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "raw__rows": 235795,
+  "raw__cols": 56,
+  "missing__cells_total": 0,
+  "missing_rows_dropped": 0,
+  "missing_imputed": {},
+  "format_values_changed": {
+    "URL": 0,
+    "Domain": 0,
+    "TLD": 0
+  },
+  "mojibake_urls": 2,
+  "validity__violations": {
+    "counts are non-negative ": 0,
+    "ratios/probs in [0, 1] ": 0,
+    "URLSimilarityIndex in [0,100]": 0,
+    "DomainLength == len(Domain)": 0,
+    "Domain ends with .TLD ": 0,
+    "URL has scheme ": 0,
+    "IsHTTPS matches scheme": 493,
+    "letters+digits <= URLLength ": 0
+  },
+  "IsHTTPS_corrected": 493,
+  "invalid_rows__dropped": 0,
+  "duplicate_urls_dropped": 425,
+  "full_row_duplicates": 0,
+  "conflicting_label_urls": 0,
+  "outlier_policy": "kept; transform (log1p/clip) in preprocessing after the split",
+  "outlier_summary": {
+    "IQR_outliers_": {
+      "URLLength": 22362,
+      "DomainLength": 13372,
+      "NoOfSubDomain": 57228,
+      "NoOfLettersInURL": 19541,
+      "NoOfDegitsInURL": 51198,
+      "NoOfEqualsInURL": 5395,
+      "NoOfQMarkInURL": 6122,
+      "NoOfAmpersandInURL": 883,
+      "NoOfOtherSpecialCharsInURL": 12315,
+      "NoOfObfuscatedChar": 483
+    },
+    "Z>=3_outliers_": {
+      "URLLength": 2196,
+      "DomainLength": 3788,
+      "NoOfSubDomain": 7036,
+      "NoOfLettersInURL": 2163,
+      "NoOfDegitsInURL": 1456,
+      "NoOfEqualsInURL": 1820,
+      "NoOfQMarkInURL": 6122,
+      "NoOfAmpersandInURL": 456,
+      "NoOfOtherSpecialCharsInURL": 2505,
+      "NoOfObfuscatedChar": 257
+    }
+  },
+  "final_rows": 235370,
+  "final_cols": 26,
+  "final_phishing": 100520,
+  "final_legitimate": 134850,
+  "distinct_domains": 220086,
+  "single_feature_auc_top5": {
+    "URLSimilarityIndex": 0.9961,
+    "NoOfOtherSpecialCharsInURL": 0.8232,
+    "SpacialCharRatioInURL": 0.8071,
+    "URLCharProb": 0.7676,
+    "IsHTTPS": 0.7568
+  }
+}
