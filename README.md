@@ -49,9 +49,31 @@ Phase 1 prepares the dataset for model development and evaluation through three 
 
 ### 2. Exploratory Data Analysis (EDA)
 
-```{=html}
-<!-- ESAR: Complete this section. Describe the analyses performed, key findings, and visualizations generated. Reference the relevant files in the images/ directory. -->
-```
+**Notebook:** `notebooks/02_eda.ipynb`
+**Input:** `data/cleaned.csv`
+**Output:** plots in `images/`
+
+The EDA examines the 22 numeric URL-only features of the cleaned dataset (235,370 records) before modelling. The notebook has a written observation under each plot.
+
+#### Analyses performed
+
+| Analysis | Figure |
+| -------- | ------ |
+| Class balance | `images/01_class_balance.png` |
+| Feature distributions by class | `images/02_distributions.png` |
+| Boxplots of key features by class | `images/03_boxplots.png` |
+| Correlation heatmap (Pearson) | `images/04_correlation_heatmap.png` |
+| Single-feature ROC-AUC | `images/05_single_feature_auc.png` |
+
+#### Key findings
+
+- **Class balance:** 134,850 legitimate (57.3%) and 100,520 phishing (42.7%) URLs. The imbalance is mild, so evaluation uses stratified splits and class-aware metrics (phishing recall, F1, PR-AUC) and not accuracy.
+- **Discriminative features:** `URLSimilarityIndex` separates the classes almost completely (single-feature AUC 0.996, Pearson r = -0.86 with `is_phishing`). Next are `NoOfOtherSpecialCharsInURL` (0.823), `SpacialCharRatioInURL` (0.807), `URLCharProb` (0.768), `IsHTTPS` (0.757) and `CharContinuationRate` (0.743). Phishing URLs tend to be longer and contain more digits and special characters.
+- **Weak features:** obfuscation features, `IsDomainIP`, `NoOfAmpersandInURL` and `NoOfSubDomain` have AUC near 0.50 individually.
+- **Redundancy:** `NoOfLettersInURL` and `URLLength` are the only pair above |r| = 0.85 (0.956). The count features move together, and the three obfuscation features are near-duplicates.
+- **Suspiciously strong features:** `URLSimilarityIndex`, `IsHTTPS`, `URLCharProb` and `TLDLegitimateProb` may reflect how the dataset was built and not phishing behaviour. They are candidates for the Phase 2 ablation, and models should be reported with and without them.
+- **Domain repetition:** at hostname level (the `Domain` column) there are 220,086 unique domains across 235,370 rows, and 54 hostnames appear with both classes. Repeated domains are concentrated in file-hosting and gateway services such as `ipfs.io` and `docs.google.com`. Registered-domain level analysis is in Section 3 and gives different counts because registered domains group subdomains together.
+- **TLD skew:** `.app`, `.co`, `.io` and `.ru` are mostly phishing, while `.uk`, `.org`, `.au` and `.de` are mostly legitimate.
 
 ### 3. Registered-Domain Preprocessing
 
