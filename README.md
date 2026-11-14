@@ -41,9 +41,23 @@ Phase 1 prepares the dataset for model development and evaluation through three 
 
 ### 1. Data Cleaning
 
-```{=html}
-<!-- AYESHA: Complete this section. Describe the cleaning operations performed, decisions made, and final dataset statistics. -->
-```
+**Notebook:** `notebooks/01_cleaning.ipynb`
+**Input:** raw PhiUSIIL CSV (downloaded from UCI)
+**Output:** `data/cleaned.csv`, `data/feature_groups.json`, `data/cleaning_log.json`
+ 
+| Step | Result | Action |
+| ---- | ------ | ------ |
+| Target recoding | Raw `label` is inverted (1 = legitimate) | Replaced with `is_phishing` (1 = phishing) |
+| Missing values | None | Nothing dropped or imputed |
+| Formatting | No fixes needed; 2 mojibake URLs | Kept as they are |
+| Validity checks | 493 rows where `IsHTTPS` did not match the URL scheme | Corrected from the scheme |
+| Duplicate URLs | 425 repeated URLs, all phishing, no label conflicts | Kept first copy, dropped 425 rows |
+| Outliers | Mostly phishing (e.g. very long URLs) | Kept; transform later using training data only |
+| Feature selection | 30 webpage/HTML columns, `Title` and `FILENAME` | Dropped; only URL-based features kept |
+ 
+**Leakage check:** all legitimate URLs are bare `https://www.<domain>` homepages with HTTPS, while phishing URLs are far more varied. `URLSimilarityIndex`, `TLDLegitimateProb`, `URLCharProb` and `IsHTTPS` are therefore tagged `leak_suspect` in `feature_groups.json`.
+ 
+**Result:** 235,795 rows and 56 columns reduced to 235,370 rows and 26 columns (100,520 phishing, 134,850 legitimate).
 
 **Output:** `data/cleaned.csv`
 
