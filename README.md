@@ -227,7 +227,14 @@ Phase 2 will focus on:
 - Run: `python -m src.train_models`, then `python -m src.plots`.
 
 ### Metrics
-(paste the output of the command below)
+| model        | split           |   precision |   recall |     f1 |   macro_f1 |    fnr |   pr_auc |   roc_auc |
+|:-------------|:----------------|------------:|---------:|-------:|-----------:|-------:|---------:|----------:|
+| LogReg       | random          |           1 |   0.9996 | 0.9998 |     0.9998 | 0.0004 |   0.9999 |    0.9999 |
+| RandomForest | random          |           1 |   0.9998 | 0.9999 |     0.9999 | 0.0002 |   1      |    1      |
+| XGBoost      | random          |           1 |   0.9998 | 0.9999 |     0.9999 | 0.0002 |   1      |    0.9999 |
+| LogReg       | domain_disjoint |           1 |   0.9994 | 0.9997 |     0.9998 | 0.0006 |   1      |    1      |
+| RandomForest | domain_disjoint |           1 |   0.9999 | 0.9999 |     0.9999 | 0.0001 |   1      |    1      |
+| XGBoost      | domain_disjoint |           1 |   0.9999 | 0.9999 |     0.9999 | 0.0001 |   0.9999 |    0.9999 |
 
 ### Figures
 ![Confusion matrices](results/figures/confusion_matrices.png)
