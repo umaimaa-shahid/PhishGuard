@@ -221,21 +221,31 @@ Phase 2 will focus on:
 ## Part A: Modeling results
 
 ### Setup
-- Data: `data/cleaned_with_domains.csv` (run `python -m src.add_domains` first to generate it from `cleaned.csv`)
-- Splits: stratified random 80/20, and domain-disjoint (grouped by `registered_domain`)
-- Models: Logistic Regression, Random Forest, XGBoost
+- Data: `data/cleaned_with_domains.csv`. Run `python -m src.add_domains` first to generate it from `cleaned.csv` (adds `registered_domain` via `tldextract`).
+- Splits: stratified random 80/20, and domain-disjoint (grouped by `registered_domain`, 175,509 groups, no domain in both train and test).
+- Models: Logistic Regression (scaled), Random Forest, XGBoost. Encoders and scalers are fit on the training split only (inside a `Pipeline`).
+- Run: `python -m src.train_models`, then `python -m src.plots`.
 
 ### Metrics
-(paste the table from results/metrics.csv)
+(paste the output of the command below)
 
 ### Figures
 ![Confusion matrices](results/figures/confusion_matrices.png)
-![PR/ROC, random](results/figures/pr_roc_random.png)
-![PR/ROC, domain-disjoint](results/figures/pr_roc_domain_disjoint.png)
+![PR/ROC, random split](results/figures/pr_roc_random.png)
+![PR/ROC, domain-disjoint split](results/figures/pr_roc_domain_disjoint.png)
 ![F1 gap](results/figures/f1_gap.png)
 
 ### Analysis
-**Best model.** ...
-**Random vs domain-disjoint gap.** ...
-**Where it fails.** (the paragraph you copied)
-**How to improve.** (list, with item 5 reworded)
+
+**Best model.** Random Forest and XGBoost tie on the domain-disjoint split: 2 errors out of 41,889 test URLs (0 false positives, 2 false negatives), F1 0.9999. Logistic Regression has 9 false negatives (F1 0.9997). The tree models differ by a couple of samples at most, so I do not claim a meaningful ranking between them. FNR is the metric that matters most here: 0.0001 for the tree models versus 0.0006 for Logistic Regression.
+
+**Random vs domain-disjoint gap.** F1(random) - F1(domain-disjoint) is +0.00008 for Logistic Regression, -0.00006 for Random Forest and -0.00003 for XGBoost. All are within noise, so grouping by registered domain did not reveal memorization of domains. This should not be read as strong generalization. The features separate the classes almost trivially (`URLSimilarityIndex` alone has AUC 0.996, and every legitimate URL is a bare `https://www.<domain>` homepage), and three features (`URLSimilarityIndex`, `TLDLegitimateProb`, `URLCharProb`) were computed over the full dataset. Part B tests this directly. Caveat: the domain-disjoint test set is 35.7% phishing versus 44.2% in train, because large hosting platforms (`web.app`, `firebaseapp.com`, `repl.co`) moved as single blocks.
+
+**Where it fails.** On the domain-disjoint split, XGBoost and Random Forest each miss only 2 of 14,943 phishing URLs, and neither flags a legitimate URL. Both misses (`https://www.officested.com` and `https://www.eauctionsindia.com/`) are bare `https://www.<domain>` homepages with `URLSimilarityIndex` = 100, HTTPS = 1 and a `.com` TLD. These are exactly the values typical of the legitimate class (median similarity 100, median HTTPS 1, versus 54 and 0 for phishing). The model assigned them phishing probabilities of 0.00008 and 0.000003, so they are confident errors rather than borderline cases, and lowering the decision threshold would not recover them. A phishing page that mimics a clean homepage with a valid certificate is invisible to a URL-string feature set. Telling such pages apart would need page-content or host-level evidence (domain age, WHOIS, certificate details).
+
+**How to improve.**
+1. Remove the leak-suspect features and retrain (Part B).
+2. Add content-based or host-based features (page content, domain age, certificate data), since URL-string features alone are artifact-prone.
+3. Use `GroupKFold` instead of a single split for stable estimates.
+4. Evaluate on data from a different source or time period.
+5. Threshold tuning helps only for borderline cases; it would not recover the confident misses above.
