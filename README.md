@@ -1,4 +1,4 @@
-<<<<<<< HEAD
+
 # PhishGuard: Explainable Phishing URL Detection
 
 ## Overview
@@ -216,5 +216,26 @@ Phase 2 will focus on:
 | Ayesha Arshad | 23L-2596   | Data cleaning                                                      |
 | Esar Fatima   | 23L-0888   | Exploratory Data Analysis                                         |
 | Umaima Shahid | 23L-0893   | Registered-domain extraction, preprocessing and domain analysis. |
-=======
->>>>>>> 15ed420 (Add error analysis and Part A write-up (A5))
+
+
+## Part A: Modeling results
+
+### Setup
+- Data: `data/cleaned_with_domains.csv` (run `python -m src.add_domains` first to generate it from `cleaned.csv`)
+- Splits: stratified random 80/20, and domain-disjoint (grouped by `registered_domain`)
+- Models: Logistic Regression, Random Forest, XGBoost
+
+### Metrics
+(paste the table from results/metrics.csv)
+
+### Figures
+![Confusion matrices](results/figures/confusion_matrices.png)
+![PR/ROC, random](results/figures/pr_roc_random.png)
+![PR/ROC, domain-disjoint](results/figures/pr_roc_domain_disjoint.png)
+![F1 gap](results/figures/f1_gap.png)
+
+### Analysis
+**Best model.** ...
+**Random vs domain-disjoint gap.** ...
+**Where it fails.** (the paragraph you copied)
+**How to improve.** (list, with item 5 reworded)
