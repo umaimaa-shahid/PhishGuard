@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # PhishGuard: Explainable Phishing URL Detection
 
 ## Overview
@@ -215,3 +216,5 @@ Phase 2 will focus on:
 | Ayesha Arshad | 23L-2596   | Data cleaning                                                      |
 | Esar Fatima   | 23L-0888   | Exploratory Data Analysis                                         |
 | Umaima Shahid | 23L-0893   | Registered-domain extraction, preprocessing and domain analysis. |
+=======
+>>>>>>> 15ed420 (Add error analysis and Part A write-up (A5))
