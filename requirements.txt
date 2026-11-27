@@ -7,3 +7,5 @@ jupyter
 tldextract
 xgboost
 shap
+streamlit
+joblib
