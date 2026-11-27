@@ -286,7 +286,7 @@ XGBoost saved to `models/final_model.joblib` (with its feature list in `models/f
 10 false alarms out of 46,104 URLs) on the domain-disjoint test set.
 
 ### SHAP
-![SHAP beeswarm](results/figures/shap_beeswarm.png)
+![SHAP global](results/figures/shap_global.png)
 
 - The strongest indicators are the frequency of special characters and URL length (both higher for phishing), `IsHTTPS` (no HTTPS pushes toward phishing), and `DomainLength` (short domains push toward phishing). 
 - As per the design, `IsHTTPS` remains in the final model; however, since all legitimate URLs use HTTPS, it is a leak-suspect feature.
