@@ -256,3 +256,45 @@ Phase 2 will focus on:
 3. Use `GroupKFold` instead of a single split for stable estimates.
 4. Evaluate on data from a different source or time period.
 5. Threshold tuning helps only for borderline cases; it would not recover the confident misses above.
+
+## Part B: Ablation and SHAP
+
+### Setup
+- Model: XGBoost (best in Part A), domain-disjoint split, same seed as Part A.
+- In order for XGBoost to treat zeros as zeros rather than as missing values, the preprocessor produces a dense matrix (`sparse_threshold=0`). This maintains SHAP values in line with the model's predictions (as verified by an assert in `explain.py`).
+- Run: `python -m src.ablation`, `python -m src.final_model`, `python -m src.explain`.
+
+### Feature-group ablation (domain-disjoint split)
+| Removed group | Features left | F1 | FNR | F1 drop |
+|---|---|---|---|---|
+| none (baseline) | 23 | 0.9998 | 0.0003 | – |
+| leak_suspect | 19 | 0.9961 | 0.0061 | 0.0038 |
+| domain/TLD | 17 | 0.9998 | 0.0003 | 0.0000 |
+| char_ratio | 17 | 0.9998 | 0.0003 | 0.0000 |
+| all three groups | 9 | 0.9911 | 0.0111 | 0.0087 |
+
+![Ablation](results/figures/ablation_f1_drop.png)
+
+- The only significant change is the removal of the leak-suspect characteristics, which causes missed phishing to increase by almost 20 times (FNR 0.0003 to 0.0061).
+- Because the other elements convey the same information, eliminating domain/TLD or character-ratio features by themselves has no effect.
+- F1 is 0.991 even with just 9 count-style features remaining. Since every legitimate URL in the dataset is a simple `https://www.<domain>` homepage, 
+URL length and special-character counts by themselves do not distinguish the classes, hence this is not proof of strong generalization.
+
+### Final model
+XGBoost saved to `models/final_model.joblib` (with its feature list in `models/final_features.json`), sans `URLSimilarityIndex`, `URLCharProb`, and
+ `TLDLegitimateProb`. Precision 0.9995, recall 0.9946, F1 0.9970, FNR 0.0054, and PR-AUC 0.9992 (105 missed phishing, 
+10 false alarms out of 46,104 URLs) on the domain-disjoint test set.
+
+### SHAP
+![SHAP beeswarm](results/figures/shap_beeswarm.png)
+
+- The strongest indicators are the frequency of special characters and URL length (both higher for phishing), `IsHTTPS` (no HTTPS pushes toward phishing), and `DomainLength` (short domains push toward phishing). 
+- As per the design, `IsHTTPS` remains in the final model; however, since all legitimate URLs use HTTPS, it is a leak-suspect feature.
+
+| Case | URL | P(phishing) | Main reasons |
+|---|---|---|---|
+| Caught | `https://topaka.cloud/ob52gtplj/18snwp` | 1.000 | long URL, short domain, path with random characters |
+| Missed | `https://www.kidzcommunity.org` | 0.0003 | HTTPS, few special characters, `.org` TLD |
+| Legitimate | `https://www.yeolderoseandcrowntheatrepub.co.uk` | 0.00004 | long domain, short URL, `.uk` TLD |
+
+The missed URL shows the main limitation: A URL-only model cannot detect a phishing site housed on a clean-looking homepage using HTTPS since there is no suspicious signal in the URL string.
