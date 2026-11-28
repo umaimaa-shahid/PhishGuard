@@ -224,7 +224,8 @@ Phase 2 will focus on:
 - Data: `data/cleaned_with_domains.csv`. Run `python -m src.add_domains` first to generate it from `cleaned.csv` (adds `registered_domain` via `tldextract`).
 - Splits: stratified random 80/20, and domain-disjoint (grouped by `registered_domain`, 197,301 groups, no domain in both train and test). `registered_domain` uses the same definition as `notebooks/03_preprocessing.ipynb` (`tldextract` with private suffixes included, so each tenant of a hosting platform such as `web.app` is its own group).
 - Models: Logistic Regression (scaled), Random Forest, XGBoost. Encoders and scalers are fit on the training split only (inside a `Pipeline`).
-- Run: `python -m src.train_models`, then `python -m src.plots`.
+- `notebooks/04_modeling.ipynb` runs Part A end to end with saved outputs. Run `python -m src.add_domains` first, since `data/cleaned_with_domains.csv` is not committed.
+
 
 ### Metrics
 | model        | split           |   precision |   recall |     f1 |   macro_f1 |    fnr |   pr_auc |   roc_auc |
