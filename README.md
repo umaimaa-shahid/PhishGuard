@@ -1,40 +1,83 @@
-
 # PhishGuard: Explainable Phishing URL Detection
+
+**Live app: [phishguard-xai.streamlit.app](https://phishguard-xai.streamlit.app/)**
 
 ## Overview
 
-PhishGuard is a machine learning project focused on detecting phishing URLs using URL-based features. It investigates how well phishing detection models distinguish legitimate and phishing URLs, particularly when evaluating URLs from registered domains that were not seen during training.
+PhishGuard is a machine learning project that detects phishing URLs using features extracted directly from URL strings. It investigates whether phishing detection models can generalize to registered domains they have never encountered during training and uses SHAP to explain individual predictions.
 
-The project also explores explainability techniques to identify and interpret the URL characteristics that contribute to model predictions.
+The project compares three classification models under random and domain-disjoint evaluation settings, investigates potentially misleading dataset features through feature-group ablation, and provides an interactive Streamlit application for URL classification.
 
-## Research Question
+**The central idea:** A model performing well on a random test split does not necessarily mean it can detect phishing on genuinely unseen domains. PhishGuard investigates this distinction rather than relying on accuracy alone.
 
-Can a phishing URL classifier generalize to domains never seen during training, and can its predictions be explained using meaningful URL characteristics?
+## Table of Contents
 
-## Objectives
+* [Problem Statement](#problem-statement)
+* [Dataset](#dataset)
+* [Project Workflow](#project-workflow)
+* [Phase 1: Data Preparation and Analysis](#phase-1-data-preparation-and-analysis)
+  * [Data Cleaning](#1-data-cleaning)
+  * [Exploratory Data Analysis](#2-exploratory-data-analysis)
+  * [Registered-Domain Preprocessing](#3-registered-domain-preprocessing)
+* [Phase 2: Model Development and Evaluation](#phase-2-model-development-and-evaluation)
+  * [Part A: Model Comparison](#part-a-model-comparison)
+  * [Part B: Feature Ablation and SHAP](#part-b-feature-ablation-and-shap)
+  * [Final Model](#final-model)
+* [Streamlit Application](#streamlit-application)
+* [Repository Structure](#repository-structure)
+* [Installation and Setup](#installation-and-setup)
+* [Running the Project](#running-the-project)
+* [Limitations](#limitations)
+* [Conclusion and Future Work](#conclusion-and-future-work)
+* [Team](#team)
 
-- Develop machine learning models for phishing URL detection using URL-based features.
-- Investigate model generalization to previously unseen registered domains.
-- Compare model performance under random and domain-disjoint evaluation settings.
-- Identify URL characteristics that contribute to phishing predictions.
-- Apply explainability techniques to interpret model decisions.
+## Problem Statement
+
+Phishing URL detection systems can report extremely high performance when evaluated using random train-test splits. However, URLs belonging to the same registered domain may appear in both training and testing data. This can make it difficult to determine whether a model has learned meaningful phishing patterns or has benefited from similarities between previously encountered domains.
+
+PhishGuard investigates the following research question:
+
+> Can a phishing URL classifier generalize to registered domains never seen during training, and can its predictions be explained using meaningful URL characteristics?
+
+To investigate this, the project:
+
+* Trains and compares Logistic Regression, Random Forest, and XGBoost.
+* Evaluates models using both random and domain-disjoint splits.
+* Investigates potentially misleading features through ablation.
+* Uses SHAP to interpret model predictions.
+* Provides a web application for classifying URLs and displaying explanations.
 
 ## Dataset
 
 **Dataset:** [PhiUSIIL Phishing URL Dataset](https://archive.ics.uci.edu/dataset/967/phiusiil+phishing+url+dataset)
+
 **Source:** UCI Machine Learning Repository (Dataset ID: 967)
 
-The original dataset contains 235,795 records and 56 columns. It includes URL-related features and a target label distinguishing
-legitimate URLs from phishing URLs. 
+| Description             | Details |
+| ----------------------- | ------- |
+| Original records        | 235,795 |
+| Original columns        | 56      |
+| Records after cleaning  | 235,370 |
+| Phishing URLs           | 100,520 |
+| Legitimate URLs         | 134,850 |
+| Predictive URL features | 23      |
 
-After data cleaning and duplicate removal, the dataset contains 235,370 records. The cleaned dataset is used for subsequent exploratory analysis and preprocessing.
+The original dataset contains URL-related and webpage-related information. Since PhishGuard focuses on URL-based detection, webpage and HTML-related features were removed.
 
 **Target variable:** `is_phishing`
 
 - `0`: Legitimate
 - `1`: Phishing
 
-The project focuses on URL-based features and does not fetch or analyze live webpage content.
+The model uses URL characteristics and does not fetch or analyze live webpage content.
+
+## Project Workflow
+
+PhishGuard is organized into three main stages:
+
+1. **Phase 1 – Data preparation:** Cleaning, exploratory analysis, and registered-domain extraction.
+2. **Phase 2 – Model development:** Model comparison, domain-disjoint evaluation, feature ablation, and SHAP explainability.
+3. **Application – Deployment:** URL feature extraction, prediction, and explanation through a Streamlit interface.
 
 ## Phase 1: Data Preparation and Analysis
 
@@ -45,19 +88,19 @@ Phase 1 prepares the dataset for model development and evaluation through three 
 **Notebook:** `notebooks/01_cleaning.ipynb`
 **Input:** raw PhiUSIIL CSV (downloaded from UCI)
 **Output:** `data/cleaned.csv`, `data/feature_groups.json`, `data/cleaning_log.json`
- 
-| Step | Result | Action |
-| ---- | ------ | ------ |
-| Target recoding | Raw `label` is inverted (1 = legitimate) | Replaced with `is_phishing` (1 = phishing) |
-| Missing values | None | Nothing dropped or imputed |
-| Formatting | No fixes needed; 2 mojibake URLs | Kept as they are |
-| Validity checks | 493 rows where `IsHTTPS` did not match the URL scheme | Corrected from the scheme |
-| Duplicate URLs | 425 repeated URLs, all phishing, no label conflicts | Kept first copy, dropped 425 rows |
-| Outliers | Mostly phishing (e.g. very long URLs) | Kept; transform later using training data only |
-| Feature selection | 30 webpage/HTML columns, `Title` and `FILENAME` | Dropped; only URL-based features kept |
- 
+
+| Step              | Result                                                  | Action                                         |
+| ----------------- | ------------------------------------------------------- | ---------------------------------------------- |
+| Target recoding   | Raw `label` is inverted (1 = legitimate)              | Replaced with `is_phishing` (1 = phishing)   |
+| Missing values    | None                                                    | Nothing dropped or imputed                     |
+| Formatting        | No fixes needed; 2 mojibake URLs                        | Kept as they are                               |
+| Validity checks   | 493 rows where `IsHTTPS` did not match the URL scheme | Corrected from the scheme                      |
+| Duplicate URLs    | 425 repeated URLs, all phishing, no label conflicts     | Kept first copy, dropped 425 rows              |
+| Outliers          | Mostly phishing (e.g. very long URLs)                   | Kept; transform later using training data only |
+| Feature selection | 30 webpage/HTML columns, `Title` and `FILENAME`     | Dropped; only URL-based features kept          |
+
 **Leakage check:** all legitimate URLs are bare `https://www.<domain>` homepages with HTTPS, while phishing URLs are far more varied. `URLSimilarityIndex`, `TLDLegitimateProb`, `URLCharProb` and `IsHTTPS` are therefore tagged `leak_suspect` in `feature_groups.json`.
- 
+
 **Result:** 235,795 rows and 56 columns reduced to 235,370 rows and 26 columns (100,520 phishing, 134,850 legitimate).
 
 **Output:** `data/cleaned.csv`
@@ -72,13 +115,13 @@ The EDA examines the 22 numeric URL-only features of the cleaned dataset (235,37
 
 #### Analyses performed
 
-| Analysis | Figure |
-| -------- | ------ |
-| Class balance | `images/01_class_balance.png` |
-| Feature distributions by class | `images/02_distributions.png` |
-| Boxplots of key features by class | `images/03_boxplots.png` |
-| Correlation heatmap (Pearson) | `images/04_correlation_heatmap.png` |
-| Single-feature ROC-AUC | `images/05_single_feature_auc.png` |
+| Analysis                          | Figure                                |
+| --------------------------------- | ------------------------------------- |
+| Class balance                     | `images/01_class_balance.png`       |
+| Feature distributions by class    | `images/02_distributions.png`       |
+| Boxplots of key features by class | `images/03_boxplots.png`            |
+| Correlation heatmap (Pearson)     | `images/04_correlation_heatmap.png` |
+| Single-feature ROC-AUC            | `images/05_single_feature_auc.png`  |
 
 #### Key findings
 
@@ -129,115 +172,32 @@ A random train-test split may place URLs from the same domain in both training a
 
 The processed dataset retains the cleaned features and adds the `registered_domain` column. This column is intended for grouping and evaluation, rather than as a predictive input feature.
 
-## Repository Structure
+## Phase 2: Model Development and Evaluation
 
-```text
-PhishGuard/
-├── data/
-│   ├── cleaned.csv
-│   ├── cleaned_with_domains.csv
-│   ├── cleaning_log.json
-│   └── feature_groups.json
-├── images/
-│   ├── 01_class_balance.png
-│   ├── 02_distributions.png
-│   ├── 03_boxplots.png
-│   ├── 04_correlation_heatmap.png
-│   └── 05_single_feature_auc.png
-├── notebooks/
-│   ├── 01_cleaning.ipynb
-│   ├── 02_eda.ipynb
-│   └── 03_preprocessing.ipynb
-├── README.md
-└── requirements.txt
-```
+Phase 2 evaluates different machine learning models, investigates their ability to generalize to unseen domains, and examines which feature groups contribute to their predictions.
 
-## Installation and Setup
-
-Clone the repository:
-
-```bash
-git clone https://github.com/umaimaa-shahid/PhishGuard.git
-cd PhishGuard
-```
-
-Install the required dependencies:
-
-```bash
-pip install -r requirements.txt
-```
-
-Launch Jupyter Notebook:
-
-```bash
-jupyter notebook
-```
-
-## Reproducing the Results
-
-Run the notebooks in the following order:
-
-| Order | Notebook                   | Description                                                         |
-| ----- | -------------------------- | ------------------------------------------------------------------- |
-| 1     | `01_cleaning.ipynb`      | Cleans the original dataset and generates the cleaned dataset.    |
-| 2     | `02_eda.ipynb`           | Performs exploratory data analysis and generates visualizations. |
-| 3     | `03_preprocessing.ipynb` | Extracts registered domains and performs domain-level analysis.   |
-
-
-Before running the notebooks:
-
-1. Obtain the original PhiUSIIL dataset from the UCI link in the Dataset section.
-2. Place the downloaded dataset at the input path expected by `01_cleaning.ipynb`.
-3. Run each notebook from top to bottom, in the order listed above. Ensure that each notebook's generated output is available at the input path expected by the next notebook.
-
-The expected outputs include the cleaned dataset, EDA visualizations, and the processed dataset containing the `registered_domain` column.
-
-## Project Scope and Limitations
-
-- Detection is based on URL-related features.
-- The project does not fetch or analyze live webpage content.
-- Registered-domain information is used for data grouping and evaluation, not as a predictive input feature.
-- Phase 1 focuses on data preparation and analysis. Model development and evaluation are planned for Phase 2.
-
-## Future Work
-
-Phase 2 will focus on:
-
-- Training Logistic Regression, Random Forest, and XGBoost classifiers.
-- Comparing random and registered-domain-disjoint evaluation.
-- Evaluating classification performance using appropriate metrics, including precision, recall, F1-score, and PR-AUC.
-- Applying SHAP to interpret model predictions.
-- Performing feature-group ablation to investigate the contribution of different URL characteristics.
-
-## Team
-
-| Name          | Student ID | Contribution                                                       |
-| ------------- | ---------- | ------------------------------------------------------------------ |
-| Ayesha Arshad | 23L-2596   | Data cleaning                                                      |
-| Esar Fatima   | 23L-0888   | Exploratory Data Analysis                                         |
-| Umaima Shahid | 23L-0893   | Registered-domain extraction, preprocessing and domain analysis. |
-
-
-## Part A: Modeling results
+### Part A: Model Comparison
 
 ### Setup
-- Data: `data/cleaned_with_domains.csv`. Run `python -m src.add_domains` first to generate it from `cleaned.csv` (adds `registered_domain` via `tldextract`).
-- Splits: stratified random 80/20, and domain-disjoint (grouped by `registered_domain`, 197,301 groups, no domain in both train and test). `registered_domain` uses the same definition as `notebooks/03_preprocessing.ipynb` (`tldextract` with private suffixes included, so each tenant of a hosting platform such as `web.app` is its own group).
-- Models: Logistic Regression (scaled), Random Forest, XGBoost. Encoders and scalers are fit on the training split only (inside a `Pipeline`).
-- `notebooks/04_modeling.ipynb` runs Part A end to end with saved outputs. Run `python -m src.add_domains` first, since `data/cleaned_with_domains.csv` is not committed.
 
+- Data: `data/cleaned_with_domains.csv`. Run `python -m src.add_domains` first to generate it from `cleaned.csv` (adds `registered_domain` via `tldextract`).
+- Splits: stratified random 80/20, and domain-disjoint (grouped by `registered_domain`, 175,509 groups, no domain in both train and test).
+- Models: Logistic Regression (scaled), Random Forest, XGBoost. Encoders and scalers are fit on the training split only (inside a `Pipeline`).
+- Run: `python -m src.train_models`, then `python -m src.plots`.
 
 ### Metrics
-| model        | split           |   precision |   recall |     f1 |   macro_f1 |    fnr |   pr_auc |   roc_auc |
-|:-------------|:----------------|------------:|---------:|-------:|-----------:|-------:|---------:|----------:|
-| LogReg       | random          |      1      |   0.9996 | 0.9998 |     0.9998 | 0.0004 |   0.9999 |    0.9999 |
-| RandomForest | random          |      1      |   0.9998 | 0.9999 |     0.9999 | 0.0002 |   1      |    1      |
-| XGBoost      | random          |      1      |   0.9998 | 0.9999 |     0.9999 | 0.0002 |   1      |    0.9999 |
-| LogReg       | domain_disjoint |      1      |   0.9992 | 0.9996 |     0.9997 | 0.0008 |   0.9999 |    0.9998 |
-| RandomForest | domain_disjoint |      0.9999 |   0.9999 | 0.9999 |     0.9999 | 0.0001 |   1      |    1      |
-| XGBoost      | domain_disjoint |      1      |   0.9999 | 1      |     1      | 0.0001 |   1      |    1      |
+
+| model        | split           | precision | recall |     f1 | macro_f1 |    fnr | pr_auc | roc_auc |
+| :----------- | :-------------- | --------: | -----: | -----: | -------: | -----: | -----: | ------: |
+| LogReg       | random          |         1 | 0.9996 | 0.9998 |   0.9998 | 0.0004 | 0.9999 |  0.9999 |
+| RandomForest | random          |         1 | 0.9998 | 0.9999 |   0.9999 | 0.0002 |      1 |       1 |
+| XGBoost      | random          |         1 | 0.9998 | 0.9999 |   0.9999 | 0.0002 |      1 |  0.9999 |
+| LogReg       | domain_disjoint |         1 | 0.9994 | 0.9997 |   0.9998 | 0.0006 |      1 |       1 |
+| RandomForest | domain_disjoint |         1 | 0.9999 | 0.9999 |   0.9999 | 0.0001 |      1 |       1 |
+| XGBoost      | domain_disjoint |         1 | 0.9999 | 0.9999 |   0.9999 | 0.0001 | 0.9999 |  0.9999 |
 
 ### Figures
+
 ![Confusion matrices](results/figures/confusion_matrices.png)
 ![PR/ROC, random split](results/figures/pr_roc_random.png)
 ![PR/ROC, domain-disjoint split](results/figures/pr_roc_domain_disjoint.png)
@@ -245,57 +205,287 @@ Phase 2 will focus on:
 
 ### Analysis
 
-**Best model.** XGBoost is the best model on the domain-disjoint split: 2 errors out of 48,063 test URLs (0 false positives, 2 false negatives), F1 1.0000 (0.99995 unrounded). Random Forest makes 4 errors (2 false positives, 2 false negatives) and Logistic Regression makes 16 (all false negatives, FNR 0.0008). The margin between XGBoost and Random Forest is only a couple of samples, so I treat the tree models as close, with XGBoost slightly ahead. FNR matters most here: 0.0001 for both tree models versus 0.0008 for Logistic Regression.
+**Best model.** Random Forest and XGBoost tie on the domain-disjoint split: 2 errors out of 41,889 test URLs (0 false positives, 2 false negatives), F1 0.9999. Logistic Regression has 9 false negatives (F1 0.9997). The tree models differ by a couple of samples at most, so I do not claim a meaningful ranking between them. FNR is the metric that matters most here: 0.0001 for the tree models versus 0.0006 for Logistic Regression.
 
-**Random vs domain-disjoint gap.** F1(random) - F1(domain-disjoint) is +0.000155 for Logistic Regression, -0.000030 for Random Forest and -0.000052 for XGBoost. The tree models are within noise, and only Logistic Regression is slightly worse on unseen domains. Grouping by registered domain therefore did not reveal memorization. This should not be read as strong generalization. The features separate the classes almost trivially (`URLSimilarityIndex` alone has AUC 0.996, and every legitimate URL is a bare `https://www.<domain>` homepage), and three features (`URLSimilarityIndex`, `TLDLegitimateProb`, `URLCharProb`) were computed over the full dataset. Part B tests this directly. The grouped split is balanced (42.4% phishing in train, 43.9% in test).
+**Random vs domain-disjoint gap.** F1(random) - F1(domain-disjoint) is +0.00008 for Logistic Regression, -0.00006 for Random Forest and -0.00003 for XGBoost. All are within noise, so grouping by registered domain did not reveal memorization of domains. This should not be read as strong generalization. The features separate the classes almost trivially (`URLSimilarityIndex` alone has AUC 0.996, and every legitimate URL is a bare `https://www.<domain>` homepage), and three features (`URLSimilarityIndex`, `TLDLegitimateProb`, `URLCharProb`) were computed over the full dataset. Part B tests this directly. Caveat: the domain-disjoint test set is 35.7% phishing versus 44.2% in train, because large hosting platforms (`web.app`, `firebaseapp.com`, `repl.co`) moved as single blocks.
 
-**Where it fails.** On the domain-disjoint split, XGBoost misses 2 of 21,097 phishing URLs and flags no legitimate URL. Both misses are the same site, `https://www.opallegal.com.au` (with and without a trailing slash), so they count as one distinct failure. It has `URLSimilarityIndex` = 100, HTTPS = 1 and a short, bare `https://www.<domain>` form, which are the values typical of the legitimate class (median similarity 100 and median HTTPS 1, versus 51.7 and 0 for phishing). The model gave the two URLs phishing probabilities of 0.000258 and 0.000132, so these are confident errors rather than borderline cases, and lowering the decision threshold would not recover them. A phishing page that mimics a clean homepage is invisible to a URL-string feature set. Telling it apart would need page-content or host-level evidence (domain age, WHOIS, certificate details). Random Forest additionally produced 2 false positives on this split.
+**Where it fails.** On the domain-disjoint split, XGBoost and Random Forest each miss only 2 of 14,943 phishing URLs, and neither flags a legitimate URL. Both misses (`https://www.officested.com` and `https://www.eauctionsindia.com/`) are bare `https://www.<domain>` homepages with `URLSimilarityIndex` = 100, HTTPS = 1 and a `.com` TLD. These are exactly the values typical of the legitimate class (median similarity 100, median HTTPS 1, versus 54 and 0 for phishing). The model assigned them phishing probabilities of 0.00008 and 0.000003, so they are confident errors rather than borderline cases, and lowering the decision threshold would not recover them. A phishing page that mimics a clean homepage with a valid certificate is invisible to a URL-string feature set. Telling such pages apart would need page-content or host-level evidence (domain age, WHOIS, certificate details).
 
 **How to improve.**
+
 1. Remove the leak-suspect features and retrain (Part B).
 2. Add content-based or host-based features (page content, domain age, certificate data), since URL-string features alone are artifact-prone.
 3. Use `GroupKFold` instead of a single split for stable estimates.
 4. Evaluate on data from a different source or time period.
 5. Threshold tuning helps only for borderline cases; it would not recover the confident misses above.
 
-## Part B: Ablation and SHAP
+### Part B: Feature Ablation and SHAP
 
 ### Setup
+
 - Model: XGBoost (best in Part A), domain-disjoint split, same seed as Part A.
-- In order for XGBoost to treat zeros as zeros rather than as missing values, the preprocessor produces a dense matrix (`sparse_threshold=0`). This maintains SHAP values in line with the model's predictions (as verified by an assert in `explain.py`).
+- In order for XGBoost to treat zeros as zeros rather than as missing values, the preprocessor produces a dense matrix (`sparse_threshold=0`). This maintains SHAP values in line with the model's predictions.
 - Run: `python -m src.ablation`, `python -m src.final_model`, `python -m src.explain`.
 
 ### Feature-group ablation (domain-disjoint split)
-| Removed group | Features left | F1 | FNR | F1 drop |
-|---|---|---|---|---|
-| none (baseline) | 23 | 0.9998 | 0.0003 | – |
-| leak_suspect | 19 | 0.9961 | 0.0061 | 0.0038 |
-| domain/TLD | 17 | 0.9998 | 0.0003 | 0.0000 |
-| char_ratio | 17 | 0.9998 | 0.0003 | 0.0000 |
-| all three groups | 9 | 0.9911 | 0.0111 | 0.0087 |
+
+| Removed group    | Features left | F1     | FNR    | F1 drop |
+| ---------------- | ------------- | ------ | ------ | ------- |
+| none (baseline)  | 23            | 0.9998 | 0.0003 | –      |
+| leak_suspect     | 19            | 0.9961 | 0.0061 | 0.0038  |
+| domain/TLD       | 17            | 0.9998 | 0.0003 | 0.0000  |
+| char_ratio       | 17            | 0.9998 | 0.0003 | 0.0000  |
+| all three groups | 9             | 0.9911 | 0.0111 | 0.0087  |
 
 ![Ablation](results/figures/ablation_f1_drop.png)
 
 - The only significant change is the removal of the leak-suspect characteristics, which causes missed phishing to increase by almost 20 times (FNR 0.0003 to 0.0061).
 - Because the other elements convey the same information, eliminating domain/TLD or character-ratio features by themselves has no effect.
-- F1 is 0.991 even with just 9 count-style features remaining. Since every legitimate URL in the dataset is a simple `https://www.<domain>` homepage, 
-URL length and special-character counts by themselves do not distinguish the classes, hence this is not proof of strong generalization.
+- F1 is 0.991 even with just 9 count-style features remaining. Since every legitimate URL in the dataset is a simple `https://www.<domain>` homepage,
+  URL length and special-character counts by themselves do not distinguish the classes, hence this is not proof of strong generalization.
 
 ### Final model
-XGBoost saved to `models/final_model.joblib` (with its feature list in `models/final_features.json`), sans `URLSimilarityIndex`, `URLCharProb`, and
- `TLDLegitimateProb`. Precision 0.9995, recall 0.9946, F1 0.9970, FNR 0.0054, and PR-AUC 0.9992 (105 missed phishing, 
+
+XGBoost saved to `models/final_model.joblib`, sans `URLSimilarityIndex`, `URLCharProb`, and
+ `TLDLegitimateProb`. Precision 0.9995, recall 0.9946, F1 0.9970, FNR 0.0054, and PR-AUC 0.9992 (105 missed phishing,
 10 false alarms out of 46,104 URLs) on the domain-disjoint test set.
 
 ### SHAP
+
 ![SHAP missed](results/figures/shap_missed.png)
 
 - The strongest indicators are the frequency of special characters and URL length (both higher for phishing), `IsHTTPS` (no HTTPS pushes toward phishing), and `DomainLength` (short domains push toward phishing). 
 - As per the design, `IsHTTPS` remains in the final model; however, since all legitimate URLs use HTTPS, it is a leak-suspect feature.
 
-| Case | URL | P(phishing) | Main reasons |
-|---|---|---|---|
-| Caught | `https://topaka.cloud/ob52gtplj/18snwp` | 1.000 | long URL, short domain, path with random characters |
-| Missed | `https://www.kidzcommunity.org` | 0.0003 | HTTPS, few special characters, `.org` TLD |
-| Legitimate | `https://www.yeolderoseandcrowntheatrepub.co.uk` | 0.00004 | long domain, short URL, `.uk` TLD |
+| Case       | URL                                                | P(phishing) | Main reasons                                        |
+| ---------- | -------------------------------------------------- | ----------- | --------------------------------------------------- |
+| Caught     | `https://topaka.cloud/ob52gtplj/18snwp`          | 1.000       | long URL, short domain, path with random characters |
+| Missed     | `https://www.kidzcommunity.org`                  | 0.0003      | HTTPS, few special characters, `.org` TLD         |
+| Legitimate | `https://www.yeolderoseandcrowntheatrepub.co.uk` | 0.00004     | long domain, short URL, `.uk` TLD                 |
 
 The missed URL shows the main limitation: A URL-only model cannot detect a phishing site housed on a clean-looking homepage using HTTPS since there is no suspicious signal in the URL string.
+
+### Part C: Application and Testing
+
+#### Streamlit Application
+
+**Live application:**[https://phishguard-xai.streamlit.app/](https://phishguard-xai.streamlit.app/)
+
+**Implementation:**
+
+* `app/app.py`
+* `src/url_features.py`
+* `notebooks/06_app_testing.ipynb`
+
+PhishGuard includes an interactive Streamlit application that allows users to enter a URL and receive a phishing classification with an explanation of the model's decision.
+
+##### How it works
+
+1. The user enters a URL into the application.
+2. The application extracts the required URL-based features.
+3. The saved XGBoost model predicts whether the URL is phishing or legitimate.
+4. The application displays the predicted class and associated probabilities.
+5. A SHAP waterfall plot explains the features contributing to the prediction.
+6. The extracted feature values are displayed for inspection.
+
+##### URL feature extraction
+
+The feature extractor in `src/url_features.py` provides two feature sources:
+
+* **Existing dataset URLs:** Original feature values are retrieved when the submitted URL matches a URL in the dataset.
+* **New URLs:** Features are calculated directly from the submitted URL using the implemented extraction logic.
+
+The extractor was tested against 1,000 dataset URLs, covering 20,000 feature-value comparisons. It achieved **93.47% agreement** with the dataset's original feature values.
+
+The remaining differences occur because some of the dataset authors' feature-counting rules are not fully documented. Consequently, feature calculations for URLs outside the dataset are approximate.
+
+#### Application testing
+
+The application and feature extraction workflow were tested in `notebooks/06_app_testing.ipynb`.
+
+Testing covered:
+
+* Feature extraction and expected feature columns.
+* Comparison between calculated features and original dataset values.
+* Model prediction using extracted features.
+* Handling of missing feature values.
+* Streamlit application startup and health checks.
+
+The validation results are documented in the application-testing notebook.
+
+## Repository Structure
+
+```text
+PhishGuard/
+│
+├── app/
+│   └── app.py
+│
+├── data/
+│   ├── cleaned.csv
+│   ├── cleaned_with_domains.csv
+│   ├── cleaning_log.json
+│   └── feature_groups.json
+│
+├── images/
+│   ├── 01_class_balance.png
+│   ├── 02_distributions.png
+│   ├── 03_boxplots.png
+│   ├── 04_correlation_heatmap.png
+│   └── 05_single_feature_auc.png
+│
+├── models/
+│   └── final_model.joblib
+│
+├── notebooks/
+│   ├── 01_cleaning.ipynb
+│   ├── 02_eda.ipynb
+│   ├── 03_preprocessing.ipynb
+│   ├── 04_modeling.ipynb
+│   ├── 05_ablation_shap.ipynb
+│   └── 06_app_testing.ipynb
+│
+├── results/
+│   ├── figures/
+│   ├── metrics.csv
+│   ├── f1_gap.csv
+│   └── ablation.csv
+│
+├── src/
+│   ├── common.py
+│   ├── add_domains.py
+│   ├── train_models.py
+│   ├── plots.py
+│   ├── ablation.py
+│   ├── final_model.py
+│   ├── explain.py
+│   ├── error_analysis.py
+│   └── url_features.py
+│
+├── run_check.py
+├── requirements.txt
+└── README.md
+```
+
+## Installation and Setup
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/umaimaa-shahid/PhishGuard.git
+cd PhishGuard
+```
+
+2. Create a virtual environment (recommended)
+
+```Shell
+python -m venv .venv
+```
+
+Activate it:
+
+**Windows PowerShell:**
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
+**Linux/macOS:**
+
+```bash
+source .venv/bin/activate
+```
+
+3. Install dependencies:
+
+```bash
+pip install -r requirements.txt
+```
+
+## Running the Project
+
+### Run the Streamlit application
+
+From the repository root:
+
+```bash
+streamlit run app/app.py
+```
+
+The application will be available at:
+
+```text
+http://localhost:8501
+```
+
+The application requires the saved model and cleaned dataset available in the repository.
+
+### Reproduce Phase 2 results
+
+Run the following commands from the repository root:
+
+```bash
+python -m src.add_domains
+python -m src.train_models
+python -m src.plots
+python -m src.ablation
+python -m src.final_model
+python -m src.explain
+```
+
+These scripts generate the registered-domain dataset, model evaluation results, visualizations, ablation results, final model, and SHAP explanations.
+
+### Run the notebooks
+
+The notebooks can also be used to follow the project's workflow:
+
+| Order | Notebook                   | Purpose                             |
+| ----- | -------------------------- | ----------------------------------- |
+| 1     | `01_cleaning.ipynb`      | Dataset cleaning                    |
+| 2     | `02_eda.ipynb`           | Exploratory data analysis           |
+| 3     | `03_preprocessing.ipynb` | Registered-domain extraction        |
+| 4     | `04_modeling.ipynb`      | Model training and comparison       |
+| 5     | `05_ablation_shap.ipynb` | Feature ablation and explainability |
+| 6     | `06_app_testing.ipynb`   | Application testing and validation  |
+
+To reproduce Phase 1 from scratch, first download the original dataset from the [UCI repository](https://archive.ics.uci.edu/dataset/967/phiusiil+phishing+url+dataset) and place it at the input path expected by the cleaning notebook.
+
+## Limitations
+
+The results should be interpreted in the context of the dataset and the project's URL-only scope.
+
+1. Dataset construction: All legitimate URLs in the dataset are bare
+   `https://www.example.com` homepages, while phishing URLs have
+   more varied structures.
+2. Potential feature leakage: Some dataset-provided features were calculated using information from the full dataset. Their contribution was investigated through feature ablation, and the final model excludes three of these features.
+3. Domain-disjoint evaluation: Most registered domains appear only once. Consequently, random and domain-disjoint splits are relatively similar, and a small generalization gap does not establish real-world generalization.
+4. URL-only detection: Phishing websites hosted on clean-looking HTTPS homepages may be difficult to detect using URL characteristics alone.
+5. Approximate feature extraction: The dataset authors' exact counting rules are not fully documented. Features recalculated for URLs outside the dataset may therefore differ from the original dataset's values.
+6. Different evaluation sets: Part A and Part B used registered-domain files generated with different Public Suffix List settings, so their test-set sizes differ (41,889 versus 46,104 URLs).
+7. External validation: Performance on a single dataset does not establish performance on newer phishing campaigns or URLs from different sources.
+
+## Conclusion and Future Work
+
+PhishGuard demonstrates how machine learning, domain-disjoint evaluation, feature ablation, and explainability can be combined to investigate phishing URL detection.
+
+The experiments show that all three evaluated models achieved near-perfect scores on the PhiUSIIL dataset. However, the analysis also revealed that these results are influenced by the dataset's structure and potentially misleading features.
+
+The final XGBoost model, trained without three leak-suspect features, achieved an F1-score of 0.9970 on the domain-disjoint test set. SHAP explanations further demonstrated that phishing URLs resembling legitimate homepages remain a significant challenge for URL-only detection.
+
+**Future improvements include:**
+
+* Developing a shared feature extraction pipeline for both model training and application inference.
+* Improving feature consistency for URLs outside the original dataset.
+* Incorporating host-based features such as domain age and certificate information.
+* Evaluating the model using recent phishing URLs from external sources such as PhishTank and OpenPhish.
+* Testing on legitimate URLs containing paths and query parameters, rather than only homepage-style URLs.
+
+PhishGuard highlights the importance of evaluating not only how accurately a model classifies data, but also what patterns it learns and how reliably those patterns apply beyond the dataset on which it was trained.
+
+## Team
+
+| Name          | Student ID | Contribution                                                                                                                        |
+| ------------- | ---------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Ayesha Arshad | 23L-2596   | Phase 1: Data cleaning, Phase 2: Model Training                                                                                    |
+| Esar Fatima   | 23L-0888   | Phase 1: Exploratory Data Analysis, Phase 2: Feature Ablation and SHAP                                                            |
+| Umaima Shahid | 23L-0893   | Phase 1: Registered-domain extraction, preprocessing and domain analysis, Phase 2: Streamlit Application, Testing, and Deployment |

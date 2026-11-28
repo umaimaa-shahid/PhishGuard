@@ -2,5 +2,4 @@ data/raw/
 .ipynb_checkpoints/
 __pycache__/
 .venv/
-data/cleaned_with_domains.csv
 results/*.pkl
